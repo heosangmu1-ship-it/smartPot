@@ -1,0 +1,76 @@
+plugins {
+	id 'java'
+	id 'org.springframework.boot' version '3.5.4'
+	id 'io.spring.dependency-management' version '1.1.7'
+}
+
+group = 'com.garden'
+version = '0.0.1-SNAPSHOT'
+
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(21)
+	}
+}
+
+repositories {
+	mavenCentral()
+}
+
+dependencies {
+	// Spring Boot starters
+	implementation 'org.springframework.boot:spring-boot-starter-actuator'
+	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+	implementation 'org.springframework.boot:spring-boot-starter-validation'
+	implementation 'org.springframework.boot:spring-boot-starter-web'
+
+	// MQTT (Eclipse Paho) via Spring Integration
+	implementation 'org.springframework.boot:spring-boot-starter-integration'
+	implementation 'org.springframework.integration:spring-integration-mqtt'
+	implementation 'org.eclipse.paho:org.eclipse.paho.client.mqttv3:1.2.5'
+
+	// InfluxDB 3 Core client (via Flight SQL)
+	implementation 'com.influxdb:influxdb3-java:1.0.0'
+
+	// JSON
+	implementation 'com.fasterxml.jackson.core:jackson-databind'
+
+	// Swagger / OpenAPI
+	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.6.0'
+
+	// Lombok
+	compileOnly 'org.projectlombok:lombok'
+	annotationProcessor 'org.projectlombok:lombok'
+
+	// Test
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	testCompileOnly 'org.projectlombok:lombok'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+	testAnnotationProcessor 'org.projectlombok:lombok'
+}
+
+tasks.named('test') {
+	useJUnitPlatform()
+}
+
+// Apache Arrow (InfluxDB 3 Flight SQL client) requires access to java.nio internals on Java 17+
+def arrowJvmArgs = [
+	'--add-opens=java.base/java.nio=ALL-UNNAMED',
+	'--add-opens=java.base/sun.nio.ch=ALL-UNNAMED'
+]
+
+tasks.named('bootRun') {
+	jvmArgs = arrowJvmArgs
+}
+
+tasks.withType(JavaExec).configureEach {
+	jvmArgs arrowJvmArgs
+}
+
+bootJar {
+	manifest {
+		attributes(
+			'Add-Opens': 'java.base/java.nio java.base/sun.nio.ch'
+		)
+	}
+}

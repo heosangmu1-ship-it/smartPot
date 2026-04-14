@@ -1,0 +1,40 @@
+spring:
+  application:
+    name: smart-garden
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
+server:
+  port: 8080
+
+# MQTT 설정
+mqtt:
+  broker:
+    url: ${MQTT_BROKER_URL:tcp://localhost:1883}
+  client-id: smart-garden-backend
+  topics: garden/sensor/temperature/state,garden/sensor/humidity/state,garden/sensor/soil/state,garden/status
+
+# InfluxDB 3 Core
+influxdb:
+  host: ${INFLUXDB_HOST:http://localhost:8181}
+  database: garden_sensors
+  token: ${INFLUXDB_TOKEN:}
+
+# Redis Pub/Sub 채널
+app:
+  redis:
+    pubsub-channel: sensor:update
+    current-key-prefix: "sensor:current:"
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: alpha
+
+logging:
+  level:
+    com.garden.smartgarden: DEBUG

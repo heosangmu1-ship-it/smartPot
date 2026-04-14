@@ -1,0 +1,30 @@
+# ─── Java / Gradle ───
+backend/build/
+backend/.gradle/
+backend/bin/
+backend/out/
+backend/!gradle/wrapper/gradle-wrapper.jar
+backend/.idea/
+backend/*.iml
+HELP.md
+
+# ─── Node / React ───
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/*.log
+
+# ─── ESP32 / ESPHome (firmware 폴더가 합쳐질 경우 대비) ───
+firmware/.esphome/
+firmware/secrets.yaml
+
+# ─── OS / IDE ───
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ─── Logs ───
+*.log
+logs/
