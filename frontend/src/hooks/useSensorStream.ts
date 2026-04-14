@@ -2,11 +2,15 @@ import { useEffect, useRef, useState } from 'react';
 import { API_BASE, type SensorReading } from '../api/client';
 
 /**
- * SSE로 백엔드의 /api/sensors/stream을 구독해서
- * 실시간 센서 이벤트를 수신.
+ * SSE로 백엔드의 /api/sensors/stream을 구독.
+ *
+ * 두 종류의 이벤트를 수신:
+ *  - "sensor"    : 매 2초 raw 센서 값 (카드 LIVE 표시)
+ *  - "aggregate" : 매 1분 집계 평균값 (그래프 자동 갱신)
  */
 export function useSensorStream() {
   const [latest, setLatest] = useState<Record<string, SensorReading>>({});
+  const [aggregates, setAggregates] = useState<Record<string, SensorReading>>({});
   const [connected, setConnected] = useState(false);
   const eventSourceRef = useRef<EventSource | null>(null);
 
@@ -23,7 +27,16 @@ export function useSensorStream() {
         const reading: SensorReading = JSON.parse((event as MessageEvent).data);
         setLatest((prev) => ({ ...prev, [reading.metric]: reading }));
       } catch (e) {
-        console.error('Failed to parse SSE data', e);
+        console.error('Failed to parse sensor SSE data', e);
+      }
+    });
+
+    es.addEventListener('aggregate', (event) => {
+      try {
+        const reading: SensorReading = JSON.parse((event as MessageEvent).data);
+        setAggregates((prev) => ({ ...prev, [reading.metric]: reading }));
+      } catch (e) {
+        console.error('Failed to parse aggregate SSE data', e);
       }
     });
 
@@ -37,5 +50,5 @@ export function useSensorStream() {
     };
   }, []);
 
-  return { latest, connected };
+  return { latest, aggregates, connected };
 }

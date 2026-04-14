@@ -29,8 +29,8 @@ function Dashboard() {
     refetchInterval: 5_000,
   });
 
-  // 3) SSE로 실시간 업데이트 수신
-  const { latest: liveSensors, connected: sseConnected } = useSensorStream();
+  // 3) SSE로 실시간 업데이트 수신 (raw + 1분 집계)
+  const { latest: liveSensors, aggregates, connected: sseConnected } = useSensorStream();
 
   // 실시간 값이 있으면 그걸 쓰고, 없으면 초기 REST 값 사용
   const temperature = liveSensors.temperature?.value ?? current?.temperature;
@@ -94,14 +94,14 @@ function Dashboard() {
           title="온도 이력 (1시간)"
           unit="°C"
           color="#ff8b3d"
-          liveValue={liveSensors.temperature}
+          aggregate={aggregates.temperature}
         />
         <HistoryChart
           metric="humidity"
           title="습도 이력 (1시간)"
           unit="%"
           color="#4dabf7"
-          liveValue={liveSensors.humidity}
+          aggregate={aggregates.humidity}
         />
       </section>
 

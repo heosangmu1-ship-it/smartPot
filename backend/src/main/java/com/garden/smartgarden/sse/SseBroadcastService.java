@@ -53,16 +53,26 @@ public class SseBroadcastService {
     }
 
     /**
-     * RedisConfig 의 MessageListenerAdapter 가 이 이름("onRedisMessage")으로 호출.
-     * MQTT → MqttMessageHandler → Redis PUBLISH → 이 메서드 → SSE push.
+     * 원시 센서 이벤트 (MQTT 매 2초마다) → SSE event "sensor".
+     * 카드 컴포넌트가 LIVE 표시용으로 사용.
      */
-    public void onRedisMessage(String jsonPayload) {
-        log.debug("Broadcasting to {} emitters: {}", emitters.size(), jsonPayload);
+    public void onRawSensorEvent(String jsonPayload) {
+        broadcast("sensor", jsonPayload);
+    }
+
+    /**
+     * 집계 이벤트 (1분마다) → SSE event "aggregate".
+     * 그래프 컴포넌트가 새로고침 없이 점을 추가하는 데 사용.
+     */
+    public void onAggregateEvent(String jsonPayload) {
+        broadcast("aggregate", jsonPayload);
+    }
+
+    private void broadcast(String eventName, String jsonPayload) {
+        log.debug("Broadcasting [{}] to {} emitters", eventName, emitters.size());
         for (SseEmitter emitter : emitters) {
             try {
-                emitter.send(SseEmitter.event()
-                        .name("sensor")
-                        .data(jsonPayload));
+                emitter.send(SseEmitter.event().name(eventName).data(jsonPayload));
             } catch (IOException e) {
                 emitters.remove(emitter);
             }
