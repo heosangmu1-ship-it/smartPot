@@ -31,6 +31,10 @@ firmware/secrets.yaml
 *.swp
 *.swo
 
+# ─── Rust ───
+bridge/target/
+bridge/Cargo.lock.bak
+
 # ─── Logs ───
 *.log
 logs/

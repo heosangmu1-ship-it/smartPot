@@ -9,14 +9,7 @@ spring:
 server:
   port: 8080
 
-# MQTT 설정
-mqtt:
-  broker:
-    url: ${MQTT_BROKER_URL:tcp://localhost:1883}
-  client-id: smart-garden-backend
-  topics: garden/sensor/temperature/state,garden/sensor/humidity/state,garden/sensor/soil/state,garden/status
-
-# InfluxDB 3 Core
+# InfluxDB 3 Core (읽기 전용 — 쓰기는 garden-bridge 가 담당)
 influxdb:
   host: ${INFLUXDB_HOST:http://localhost:8181}
   database: garden_sensors
