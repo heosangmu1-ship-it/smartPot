@@ -111,7 +111,10 @@ export function HistoryChart({ metric, title, unit, color, aggregate }: Props) {
                   borderRadius: 8,
                   color: '#fff',
                 }}
-                formatter={(value: number) => [`${value.toFixed(2)} ${unit}`, title]}
+                formatter={(value) => [
+                  typeof value === 'number' ? `${value.toFixed(2)} ${unit}` : String(value),
+                  title,
+                ]}
               />
               <Line
                 type="monotone"
