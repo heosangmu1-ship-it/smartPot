@@ -14,6 +14,12 @@ frontend/dist/
 frontend/.vite/
 frontend/*.log
 
+# React 빌드 산출물은 Spring Boot 로 바로 export 되므로 커밋 제외
+backend/src/main/resources/static/assets/
+backend/src/main/resources/static/index.html
+backend/src/main/resources/static/favicon.svg
+backend/src/main/resources/static/icons.svg
+
 # ─── ESP32 / ESPHome (firmware 폴더가 합쳐질 경우 대비) ───
 firmware/.esphome/
 firmware/secrets.yaml
