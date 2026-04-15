@@ -41,63 +41,69 @@ ESP32-S3 + 온습도 센서 + 토양 센서 → MQTT 브로커 → Spring Boot �
 
 ```mermaid
 flowchart LR
-    subgraph HW[" 🌡 하드웨어 "]
-        ESP[ESP32-S3<br/>SHT30 + 토양수분]
+    subgraph HW[HW - Hardware]
+        ESP[ESP32-S3<br/>SHT30 + Soil]
     end
 
-    subgraph BR[" 📡 메시지 브로커 "]
-        MQTT[Mosquitto<br/>:1883]
+    subgraph BR[Message Broker]
+        MQTT[Mosquitto 1883]
     end
 
-    subgraph BE[" ☕ Spring Boot 3.5 (Java 21) "]
+    subgraph RUST[Rust Bridge]
         direction TB
-        MH[MqttMessageHandler<br/>Spring Integration MQTT]
-        SCH[SensorAggregateService<br/>@Scheduled 1분]
-        IW[InfluxWriter<br/>@Async]
-        REST[REST Controller<br/>+ Swagger UI]
-        SSE[SseBroadcastService<br/>CopyOnWriteArrayList&lt;SseEmitter&gt;]
-        MH --> IW
+        RMQ[rumqttc<br/>MQTT subscriber]
+        RINF[reqwest<br/>InfluxDB writer]
+        RRED[redis-rs<br/>HSET + PUBLISH]
+        RMQ --> RRED
+        RMQ --> RINF
     end
 
-    subgraph DB[" 💾 저장소 "]
-        REDIS[(Redis<br/>현재값 캐시 + Pub/Sub)]
-        INFLUX[(InfluxDB 3 Core<br/>시계열 이력)]
-    end
-
-    subgraph FE[" ⚛️ React 18 + TypeScript "]
+    subgraph BE[Spring Boot 3.5 Java 21]
         direction TB
-        CARD[StatCard<br/>실시간 LIVE]
-        CHART[HistoryChart<br/>1분 집계 그래프]
+        SCH[SensorAggregateService<br/>Scheduled 1 min]
+        REST[REST Controller + Swagger]
+        SSE[SseBroadcastService<br/>SseEmitter list]
     end
 
-    ESP -- MQTT publish 2s --> MQTT
-    MQTT -- subscribe --> MH
-    MH -- HSET 현재값 --> REDIS
-    MH -- PUBLISH sensor:update --> REDIS
-    IW -- writeAsync --> INFLUX
+    subgraph DB[Storage]
+        REDIS[(Redis<br/>current + Pub Sub)]
+        INFLUX[(InfluxDB 3 Core<br/>time series)]
+    end
+
+    subgraph FE[React 18 + TypeScript]
+        direction TB
+        CARD[StatCard - live]
+        CHART[HistoryChart - 1m avg]
+    end
+
+    ESP -- publish 2s --> MQTT
+    MQTT -- subscribe --> RMQ
+    RRED -- HSET current --> REDIS
+    RRED -- PUBLISH update --> REDIS
+    RINF -- write_lp --> INFLUX
     SCH -- query 1m avg --> INFLUX
-    SCH -- PUBLISH sensor:aggregate --> REDIS
+    SCH -- PUBLISH aggregate --> REDIS
     REDIS -- subscribe --> SSE
-    REST -- GET 현재값 --> REDIS
-    REST -- GET 시계열 --> INFLUX
-    CARD -- 초기 GET /current --> REST
-    CHART -- 초기 GET /history --> REST
-    CARD -- SSE event:sensor --> SSE
-    CHART -- SSE event:aggregate --> SSE
+    REST -- GET current --> REDIS
+    REST -- GET history --> INFLUX
+    CARD -- initial GET --> REST
+    CHART -- initial GET --> REST
+    CARD -- SSE sensor --> SSE
+    CHART -- SSE aggregate --> SSE
 ```
 
 ### Hot Path vs Cold Path 분리
 
 ```mermaid
 flowchart TD
-    MQTT[MQTT 메시지 도착] --> FAN{Spring Boot<br/>Fan-out}
-    FAN -- Hot Path --> R[Redis HSET<br/>< 1ms]
-    FAN -- Hot Path --> P[Redis PUBLISH<br/>SSE 즉시 push]
-    FAN -- Cold Path --> I[InfluxDB writeAsync<br/>비동기]
+    MQTT[MQTT message arrives] --> FAN{Rust Bridge<br/>Fan-out}
+    FAN -- Hot Path --> R[Redis HSET - under 1ms]
+    FAN -- Hot Path --> P[Redis PUBLISH - SSE push]
+    FAN -- Cold Path --> I[InfluxDB write - async]
 
-    R --> RC[REST API 응답<br/>현재값 즉시]
-    P --> SC[프론트 카드<br/>LIVE 표시]
-    I --> HC[InfluxDB 1분 집계<br/>그래프 스무딩]
+    R --> RC[REST API - instant current]
+    P --> SC[Front card - LIVE badge]
+    I --> HC[InfluxDB 1m avg - chart smoothing]
 ```
 
 **핵심**: 실시간 경로(Hot path)에 DB 쓰기를 끼워 넣지 않습니다.
@@ -108,31 +114,28 @@ DB 장애가 생겨도 SSE 실시간 push 는 계속 동작합니다.
 ```mermaid
 sequenceDiagram
     participant ESP as ESP32-S3
-    participant SB as Spring Boot
+    participant RB as Rust Bridge
     participant R as Redis
     participant I as InfluxDB
+    participant SB as Spring Boot
     participant FE as React Front
 
-    rect rgb(40, 50, 70)
-    Note over ESP,FE: 매 2초 — 실시간 이벤트
-    ESP->>SB: MQTT temperature=24.5
-    SB->>R: HSET sensor:current
-    SB->>R: PUBLISH sensor:update
-    SB->>I: writeAsync
-    R->>SB: subscribe callback
-    SB->>FE: SSE event="sensor"
-    Note over FE: 카드 LIVE 갱신
-    end
+    Note over ESP,FE: Every 2s - raw event path
+    ESP->>RB: MQTT temperature 24.5
+    RB->>R: HSET sensor current
+    RB->>R: PUBLISH update
+    RB->>I: write_lp async
+    R-->>SB: subscribe callback
+    SB->>FE: SSE sensor event
+    Note over FE: Card LIVE updates
 
-    rect rgb(50, 40, 60)
-    Note over ESP,FE: 매 1분 — 집계 이벤트
-    SB->>I: SELECT date_bin('1 minute', time), AVG(value)
-    I-->>SB: 60개 평균 포인트
-    SB->>R: PUBLISH sensor:aggregate
-    R->>SB: subscribe callback
-    SB->>FE: SSE event="aggregate"
-    Note over FE: 그래프 끝에 점 추가<br/>(새로고침 불필요)
-    end
+    Note over ESP,FE: Every 1 min - aggregate path
+    SB->>I: SELECT date_bin 1 minute AVG
+    I-->>SB: 60 bucket points
+    SB->>R: PUBLISH aggregate
+    R-->>SB: subscribe callback
+    SB->>FE: SSE aggregate event
+    Note over FE: Chart appends point
 ```
 
 ---
