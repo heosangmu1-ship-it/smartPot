@@ -21,6 +21,11 @@ app:
     pubsub-channel: sensor:update
     current-key-prefix: "sensor:current:"
 
+security:
+  enabled: ${SECURITY_ENABLED:false}
+  user: ${SECURITY_USER:admin}
+  password: ${SECURITY_PASSWORD:changeme}
+
 springdoc:
   api-docs:
     path: /v3/api-docs

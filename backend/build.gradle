@@ -23,6 +23,7 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 	implementation 'org.springframework.boot:spring-boot-starter-web'
+	implementation 'org.springframework.boot:spring-boot-starter-security'
 
 	// InfluxDB 3 Core client (Flight SQL) — 조회 전용
 	// MQTT 구독과 InfluxDB 쓰기는 별도 Rust 브릿지(garden-bridge) 가 담당한다.
